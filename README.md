@@ -26,12 +26,13 @@
 
 ```
 mois-naming/
-├── SKILL.md                    # Claude가 읽는 스킬 정의서
+├── SKILL.md                    # Claude가 읽는 스킬 정의서 (생성/검증/테이블정의서/감리 워크플로 포함)
 ├── scripts/
-│   └── search.py               # references/*.csv 자동 탐지·병합 검색
+│   └── search.py               # references/*.csv 자동 탐지·병합 검색 + parse_domain() 도메인 파싱
 └── references/
-    ├── standard_terms.csv      # 행안부 공통표준용어 (교체 가능)
-    ├── custom_terms.csv        # 프로젝트 자체 약어 (선택, 직접 추가)
+    ├── standard_terms.csv      # 행안부 공통표준용어 (합성어 + 도메인 정보)
+    ├── standard_words.csv      # 행안부 공통표준단어 (원자 약어, 합성어 조립 기반)
+    ├── custom_terms.csv        # 프로젝트 자체 약어 (비표준 용어 등록)
     └── guide.md                # 상세 규칙 가이드 §1~§10
 ```
 
@@ -44,7 +45,7 @@ mois-naming/
 이 저장소를 Claude Code 스킬 디렉터리에 두면 자동 인식됩니다.
 
 ```bash
-git clone https://github.com/ksm1569/claude-skill-mois-naming.git ~/.claude/skills/mois-naming
+git clone https://github.com/<your-id>/mois-naming.git ~/.claude/skills/mois-naming
 ```
 
 이후 Claude Code에서 "회원가입일자를 행안부 표준으로 바꿔줘" 같은 요청을 하면 스킬이 자동으로 활성화됩니다.
@@ -90,12 +91,12 @@ python scripts/search.py "카테고리" --exact
 
 ## 📋 변환 예시
 
-| 한글 명칭 | 표준 약어 | DB컬럼 | Java변수 | REST URL |
-|---|---|---|---|---|
-| 회원 | MBR | `TB_MBR` | `mbr` | `/api/mbr` |
-| 회원가입일자 | MBR_JOIN_YMD | `MBR_JOIN_YMD` | `mbrJoinYmd` | — |
-| 게시물 목록 | PST_LIST | — | `pstList` | `/api/pst-list` |
-| 돌봄여부 | CARE_YN | `CARE_YN` | `careYn` | — |
+| 한글 명칭 | 표준 약어 | 도메인 | DB타입 | DB컬럼 | Java변수 |
+|---|---|---|---|---|---|
+| 회원명 | MBR_NM | 명V100 | VARCHAR(100) | `MBR_NM` | `mbrNm` |
+| 회원가입일자 | MBR_JOIN_YMD | 연월일C8 | CHAR(8) | `MBR_JOIN_YMD` | `mbrJoinYmd` |
+| 삭제여부 | DEL_YN | 여부C1 | CHAR(1) | `DEL_YN` | `delYn` |
+| 돌봄여부 | CARE_YN | (비표준) | CHAR(1) | `CARE_YN` | `careYn` |
 
 ---
 

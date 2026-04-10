@@ -14,7 +14,7 @@ Examples:
     python search.py 돌봄 --csv /path/to/new_standard.csv
     python search.py 회원 --no-default --csv /other/custom.csv
 """
-import csv, sys, argparse, os, glob
+import csv, sys, argparse, os, glob, re
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REF_DIR = os.path.join(SCRIPT_DIR, '..', 'references')
@@ -23,6 +23,26 @@ NAME_COLS = ['공통표준용어명','공통표준단어명','용어명','단어
 ABBR_COLS = ['공통표준용어영문약어명','공통표준단어영문약어명','영문약어명','abbr']
 DOMAIN_COLS = ['공통표준도메인명','도메인명','domain']
 DESC_COLS = ['공통표준용어설명','공통표준단어설명','설명','description']
+
+# 도메인 코드 → DB 데이터타입 매핑
+DOMAIN_TYPE_MAP = {'V': 'VARCHAR', 'C': 'CHAR', 'N': 'NUMBER', 'D': 'DATE'}
+
+def parse_domain(domain_str):
+    """행안부 도메인 문자열을 DB 데이터타입으로 파싱.
+    예: '명V100' -> {'root':'명','type':'VARCHAR','length':'100','raw':'명V100'}
+        '연월일시분초D' -> {'root':'연월일시분초','type':'DATE','length':'','raw':'연월일시분초D'}
+    파싱 불가 시 root에 원본 보존."""
+    if not domain_str:
+        return {'root': '', 'type': '', 'length': '', 'raw': ''}
+    m = re.match(r'^(.+?)(V|C|N|D)(\d+(?:,\d+)?)?$', domain_str)
+    if m:
+        return {
+            'root': m.group(1),
+            'type': DOMAIN_TYPE_MAP[m.group(2)],
+            'length': m.group(3) or '',
+            'raw': domain_str
+        }
+    return {'root': domain_str, 'type': '', 'length': '', 'raw': domain_str}
 
 def find_col(row, candidates):
     for c in candidates:
@@ -48,9 +68,13 @@ def search(keyword, csv_paths, top=10, exact=False):
                         continue
                     if not exact and keyword not in name:
                         continue
+                    domain_raw = find_col(row, DOMAIN_COLS)
+                    parsed = parse_domain(domain_raw)
                     results.append({
                         'name': name, 'abbr': abbr,
-                        'domain': find_col(row, DOMAIN_COLS),
+                        'domain': domain_raw,
+                        'domain_type': parsed['type'],
+                        'domain_length': parsed['length'],
                         'desc': find_col(row, DESC_COLS)[:80],
                         'source': row.get('출처', src),
                         'len': len(name),
@@ -91,10 +115,11 @@ def main():
     if not results:
         print(f'"{args.keyword}" 결과 없음'); sys.exit(0)
 
-    print(f'{"용어명":<20} {"약어":<25} {"도메인":<15} {"출처":<30} 설명')
-    print('-' * 120)
+    print(f'{"용어명":<20} {"약어":<25} {"도메인":<15} {"DB타입":<12} {"출처":<30} 설명')
+    print('-' * 132)
     for r in results:
-        print(f'{r["name"]:<20} {r["abbr"]:<25} {r["domain"]:<15} {r["source"]:<30} {r["desc"]}')
+        db_type = f'{r["domain_type"]}({r["domain_length"]})' if r['domain_type'] and r['domain_length'] else r['domain_type'] or ''
+        print(f'{r["name"]:<20} {r["abbr"]:<25} {r["domain"]:<15} {db_type:<12} {r["source"]:<30} {r["desc"]}')
 
 if __name__ == '__main__':
     main()
